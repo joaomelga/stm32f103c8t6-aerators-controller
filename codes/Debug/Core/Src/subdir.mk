@@ -5,7 +5,9 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../Core/Src/eeprom.c \
+../Core/Src/fonts.c \
 ../Core/Src/main.c \
+../Core/Src/ssd1306.c \
 ../Core/Src/stm32f1xx_hal_msp.c \
 ../Core/Src/stm32f1xx_it.c \
 ../Core/Src/syscalls.c \
@@ -13,7 +15,9 @@ C_SRCS += \
 
 OBJS += \
 ./Core/Src/eeprom.o \
+./Core/Src/fonts.o \
 ./Core/Src/main.o \
+./Core/Src/ssd1306.o \
 ./Core/Src/stm32f1xx_hal_msp.o \
 ./Core/Src/stm32f1xx_it.o \
 ./Core/Src/syscalls.o \
@@ -21,7 +25,9 @@ OBJS += \
 
 C_DEPS += \
 ./Core/Src/eeprom.d \
+./Core/Src/fonts.d \
 ./Core/Src/main.d \
+./Core/Src/ssd1306.d \
 ./Core/Src/stm32f1xx_hal_msp.d \
 ./Core/Src/stm32f1xx_it.d \
 ./Core/Src/syscalls.d \

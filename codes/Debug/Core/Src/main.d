@@ -23,11 +23,15 @@ Core/Src/main.o: ../Core/Src/main.c \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_adc_ex.h \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h \
+ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
  C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
- C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/eeprom.h
+ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/eeprom.h \
+ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/ssd1306.h \
+ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/fonts.h \
+ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/fonts.h
 
 C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/main.h:
 
@@ -77,6 +81,8 @@ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Dr
 
 C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h:
 
+C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h:
+
 C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h:
 
 C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h:
@@ -86,3 +92,9 @@ C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Dr
 C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
 
 C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/eeprom.h:
+
+C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/ssd1306.h:
+
+C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/fonts.h:
+
+C:/Users/joaol/Documents/Projetos/aeratorActuator/codes/Core/Inc/fonts.h:

@@ -1,27 +1,21 @@
 /* USER CODE BEGIN Header */
-/*
- * main.c
- * Copyright (C) João Melga <joaolucasfm@gmail.com>
+/**
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
  *
- * Version 1.0
+ * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+ * All rights reserved.</center></h2>
  *
- * This software controls an STM32f103c8t6 microcontroller manage
- * aerators engines according to luminosity and print messages via
- * UART.
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the Licence, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Se the
- * GNU General Public Licence for more details.
- *
- * Created on: feb-03-2020
- *
- * This software is designed to run under STM32 System Workbench IDE + CubeMX.
+ * https://github.com/STMicroelectronics/STM32CubeF1/blob/master/Projects/STM32F103RB-Nucleo/Applications/EEPROM/EEPROM_Emulation/Src/main.c
+ ******************************************************************************
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -29,12 +23,19 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-// #include "StateMachine.h"
 #include "eeprom.h"
+#include "ssd1306.h"
+#include "fonts.h"
 
 #define DEAFULT_LUMINOSITY_TRIGGER 3000
 #define MAX_MSG_GAP 750000 // 15 minutes
 #define MIN_MSG_GAP 7500 // 7,5 seconds
+#define ANIMATION_GAP 200
+#define MOTOR_TOGGLE_MAX_TIME 3000 // 3 seconds
+
+#define LIGHT_ICON_X 40
+#define LIGHT_ICON_Y 3
+#define TEXT_Y 40
 
 #define ERROR_STATE 0
 #define MOTOR_ON_STATE 1
@@ -73,6 +74,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart1;
@@ -90,6 +93,7 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 static void UART_TransmitMessage(char *);
 /* USER CODE END PFP */
@@ -107,9 +111,15 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	uint16_t luminosity = 0, luminosityTrigger = DEAFULT_LUMINOSITY_TRIGGER, state = BOOTING_STATE;
-	uint8_t motorVoltageDetected, automaticModeEnabled = 1, messageType = BOOTING_MSG;
-	unsigned int lastMsgTimestamp = - MIN_MSG_GAP, timePassedSinceLastMsg = 0;
-	GPIO_PinState lowLuminosityIndicator;
+	uint8_t motorVoltageDetected, automaticModeEnabled = 1, messageType = BOOTING_MSG, animationTurn = 0;
+	unsigned int lastMsgTimestamp = - MIN_MSG_GAP,
+			timePassedSinceLastMsg = 0,
+			lastAnimationTimestamp = HAL_GetTick(),
+			timePassedSinceLastAnimation = 0,
+			lastMotorToggleTimestamp = HAL_GetTick(),
+			timeSinceLastMotorToggle = 0;
+	GPIO_PinState lowLuminosityDetected;
+	char *displayText;
 
   /* USER CODE END 1 */
 
@@ -135,7 +145,36 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  SSD1306_Init();
+  SSD1306_DrawFilledRectangle(0, 0, 128, 64, 1);
+  SSD1306_UpdateScreen();
+  HAL_Delay(500);
+  SSD1306_DrawFilledRectangle(0, 0, 128, 64, 0);
+
+  // Print aerator
+  SSD1306_DrawFilledRectangle(6, 0, 10, 12, 1);
+  SSD1306_DrawRectangle(6, 6, 10, 12, 1);
+  SSD1306_DrawFilledRectangle(0, 16, 22, 6, 1);
+  SSD1306_DrawLine(11, 12, 11, 30, 1);
+  SSD1306_DrawTriangle(9, 28, 5, 26, 5, 30, 1);
+  SSD1306_DrawTriangle(13, 28, 17, 26, 17, 30, 1);
+
+  // Print ligth
+  SSD1306_DrawLine(LIGHT_ICON_X + 0, LIGHT_ICON_Y + 0, LIGHT_ICON_X + 24, LIGHT_ICON_Y + 24, 1);
+  SSD1306_DrawLine(LIGHT_ICON_X + 24, LIGHT_ICON_Y + 0, LIGHT_ICON_X + 0, LIGHT_ICON_Y + 24, 1);
+  SSD1306_DrawLine(LIGHT_ICON_X + 12, LIGHT_ICON_Y + 0, LIGHT_ICON_X + 12, LIGHT_ICON_Y + 24, 1);
+  SSD1306_DrawLine(LIGHT_ICON_X + 0, LIGHT_ICON_Y + 12, LIGHT_ICON_X + 24, LIGHT_ICON_Y + 12, 1);
+  SSD1306_DrawFilledCircle(LIGHT_ICON_X + 12, LIGHT_ICON_Y + 12, 8, 0);
+  SSD1306_DrawFilledCircle(LIGHT_ICON_X + 12, LIGHT_ICON_Y + 12, 6, 1);
+
+  // Print WiFi signal level
+  // Print automatic mode on/off
+  // Print state
+
+  SSD1306_UpdateScreen();
+
   EE_ReadVariable(VirtAddVarTab[0], &luminosityTrigger);
   /* USER CODE END 2 */
 
@@ -149,12 +188,10 @@ int main(void)
 		HAL_Delay(1);
 
 		motorVoltageDetected = HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin);
-		lowLuminosityIndicator = luminosity < luminosityTrigger ? GPIO_PIN_SET : GPIO_PIN_RESET;
+		lowLuminosityDetected = luminosity < luminosityTrigger ? GPIO_PIN_SET : GPIO_PIN_RESET;
 		timePassedSinceLastMsg = HAL_GetTick() - lastMsgTimestamp;
-
-		HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin));
-		HAL_GPIO_WritePin(GPIOA, LED_D2_Pin, automaticModeEnabled);
-		HAL_GPIO_WritePin(GPIOA, LED_D3_Pin, lowLuminosityIndicator);
+		timePassedSinceLastAnimation = HAL_GetTick() - lastAnimationTimestamp;
+		timeSinceLastMotorToggle = HAL_GetTick() - lastMotorToggleTimestamp;
 
 		if (HAL_GPIO_ReadPin(GPIOB, BUTTON_D3_Pin)) {
 			HAL_ADCEx_Calibration_Start(&hadc1);
@@ -172,11 +209,9 @@ int main(void)
 
 			HAL_Delay(300);
 			while (HAL_GPIO_ReadPin(GPIOB, BUTTON_D2_Pin));
-
-			messageType = automaticModeEnabled ? AUTOMATIC_MODE_ON_MSG : AUTOMATIC_MODE_OFF_MSG;
 		}
 
-		if ((messageType != NO_MSG && timePassedSinceLastMsg > MIN_MSG_GAP) || timePassedSinceLastMsg > MAX_MSG_GAP) {
+		/* if ((messageType != NO_MSG && timePassedSinceLastMsg > MIN_MSG_GAP) || timePassedSinceLastMsg > MAX_MSG_GAP) {
 			char* message;
 			asprintf(&message, " Motor1,%i,%i,%i,%i,%i,%i ", messageType, motorVoltageDetected, luminosity, luminosityTrigger, automaticModeEnabled, state);
 
@@ -185,100 +220,100 @@ int main(void)
 
 			messageType = NO_MSG;
 			lastMsgTimestamp = HAL_GetTick();
+		} */
+
+		if (timePassedSinceLastAnimation > ANIMATION_GAP) {
+			lastAnimationTimestamp = HAL_GetTick();
+			animationTurn = (animationTurn + 1) % 4;
+
+			switch (animationTurn) {
+			case 0:
+				SSD1306_DrawTriangle(9, 28, 7, 26, 7, 30, 0);
+				SSD1306_DrawTriangle(13, 28, 15, 26, 15, 30, 0);
+				SSD1306_DrawTriangle(9, 28, 5, 26, 5, 30, 1);
+				SSD1306_DrawTriangle(13, 28, 17, 26, 17, 30, 1);
+
+				SSD1306_DrawFilledRectangle(0, TEXT_Y, 128, 64 - TEXT_Y, 0);
+
+				SSD1306_GotoXY(0, TEXT_Y);
+				SSD1306_Puts("Lig.", &Font_7x10, 1);
+
+				asprintf(&displayText, "%i%%", (luminosity * 100) / luminosityTrigger);
+				SSD1306_GotoXY(LIGHT_ICON_X, TEXT_Y);
+				SSD1306_Puts(displayText, &Font_7x10, 1);
+
+				break;
+
+			case 1:
+				SSD1306_DrawTriangle(9, 28, 5, 26, 5, 30, 0);
+				SSD1306_DrawTriangle(13, 28, 17, 26, 17, 30, 0);
+				SSD1306_DrawTriangle(9, 28, 7, 26, 7, 30, 1);
+				SSD1306_DrawTriangle(13, 28, 15, 26, 15, 30, 1);
+				break;
+
+			case 2:
+				SSD1306_DrawTriangle(9, 28, 7, 26, 7, 30, 0);
+				SSD1306_DrawTriangle(13, 28, 15, 26, 15, 30, 0);
+				break;
+
+			case 3:
+				SSD1306_DrawTriangle(9, 28, 7, 26, 7, 30, 0);
+				SSD1306_DrawTriangle(13, 28, 15, 26, 15, 30, 0);
+				SSD1306_DrawTriangle(9, 28, 7, 26, 7, 30, 1);
+				SSD1306_DrawTriangle(13, 28, 15, 26, 15, 30, 1);
+				break;
+			}
+
+			SSD1306_UpdateScreen();
 		}
 
 		switch (state) {
-		case BOOTING_STATE: {
+		case BOOTING_STATE:
 			state = motorVoltageDetected ? MOTOR_ON_STATE : MOTOR_OFF_STATE;
 			break;
-		}
+
 		case MOTOR_ON_STATE:
-			if (!motorVoltageDetected) {
+			HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_RESET);
+
+			if (!motorVoltageDetected)
 				state = MOTOR_OFF_STATE;
-				messageType = MOTOR_OFF_MANUALY_MSG;
+			else if (automaticModeEnabled && !lowLuminosityDetected) {
+				lastMotorToggleTimestamp = HAL_GetTick();
+				state = MOTOR_SWITCHING_OFF_STATE;
 			}
-			else if (automaticModeEnabled && luminosity > luminosityTrigger)
-				state = (MOTOR_SWITCHING_OFF_STATE);
 
 			break;
 
 		case MOTOR_OFF_STATE:
-			if (motorVoltageDetected) {
-				state = (MOTOR_ON_STATE);
-				messageType = MOTOR_ON_MANUALY_MSG;
+			HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_RESET);
+
+			if (motorVoltageDetected)
+				state = MOTOR_ON_STATE;
+			else if (automaticModeEnabled && lowLuminosityDetected) {
+				lastMotorToggleTimestamp = HAL_GetTick();
+				state = MOTOR_SWITCHING_ON_STATE;
 			}
-			else if (automaticModeEnabled && luminosity <= luminosityTrigger)
-				state = (MOTOR_SWITCHING_ON_STATE);
 
 			break;
 
 		case MOTOR_SWITCHING_ON_STATE:
 			HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_SET);
 
-			for (int i = 0; i < 30 && !motorVoltageDetected; i++) {
-				HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, GPIO_PIN_SET);
-				HAL_Delay(50);
-				HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, GPIO_PIN_RESET);
-				HAL_Delay(50);
-
-				motorVoltageDetected = HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin);
-			}
-
-			HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_RESET);
-			state = (MOTOR_SWITCHING_VERIFYING_STATE);
+			if (motorVoltageDetected) state = MOTOR_ON_STATE;
+			else if (timeSinceLastMotorToggle > MOTOR_TOGGLE_MAX_TIME) state = ERROR_STATE;
 			break;
 
 		case MOTOR_SWITCHING_OFF_STATE:
 			HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_SET);
 
-			for (int i = 0; i < 20 && motorVoltageDetected; i++) {
-				HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, GPIO_PIN_SET);
-				HAL_Delay(50);
-				HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, GPIO_PIN_RESET);
-				HAL_Delay(50);
-
-				motorVoltageDetected = HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin);
-			}
-
-			HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_RESET);
-			state = (MOTOR_SWITCHING_VERIFYING_STATE);
-			break;
-
-		case MOTOR_SWITCHING_VERIFYING_STATE:
-			if (!motorVoltageDetected && luminosity > luminosityTrigger) {
-				state = (MOTOR_OFF_STATE);
-				messageType = MOTOR_OFF_AUTO_MSG;
-			}
-			else if (motorVoltageDetected && luminosity <= luminosityTrigger) {
-				state = (MOTOR_ON_STATE);
-				messageType = MOTOR_ON_AUTO_MSG;
-			}
-			else {
-				state = (ERROR_STATE);
-				messageType = MOTOR_ERROR_MSG;
-			}
-
+			if (!motorVoltageDetected) state = MOTOR_OFF_STATE;
+			else if (timeSinceLastMotorToggle > MOTOR_TOGGLE_MAX_TIME) state = ERROR_STATE;
 			break;
 
 		case ERROR_STATE:
-			HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOA, LED_D2_Pin, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOA, LED_D3_Pin, GPIO_PIN_SET);
-			HAL_Delay(100);
-			HAL_GPIO_WritePin(GPIOA, LED_D1_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOA, LED_D2_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOA, LED_D3_Pin, GPIO_PIN_RESET);
-			HAL_Delay(100);
-
-			if (!automaticModeEnabled || (!motorVoltageDetected && luminosity > luminosityTrigger)) {
-				state = (MOTOR_OFF_STATE);
-				messageType = automaticModeEnabled ? MOTOR_OFF_AUTO_MSG : MOTOR_OFF_MANUALY_MSG;
-			}
-			else if (!automaticModeEnabled || (motorVoltageDetected && luminosity <= luminosityTrigger)) {
-				state = (MOTOR_ON_STATE);
-				messageType = automaticModeEnabled ? MOTOR_ON_AUTO_MSG : MOTOR_ON_MANUALY_MSG;
-			}
-
+			if (!automaticModeEnabled) state = BOOTING_STATE;
+			else if (!motorVoltageDetected && !lowLuminosityDetected) state = MOTOR_OFF_STATE;
+			else if (motorVoltageDetected && lowLuminosityDetected) state = MOTOR_ON_STATE;
 			break;
 		}
     /* USER CODE END WHILE */
@@ -372,6 +407,40 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
