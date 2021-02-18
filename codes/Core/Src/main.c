@@ -1,21 +1,27 @@
 /* USER CODE BEGIN Header */
-/**
- ******************************************************************************
- * @file           : main.c
- * @brief          : Main program body
- ******************************************************************************
- * @attention
+/*
+ * main.c
+ * Copyright (C) Jo�o Melga <joaolucasfm@gmail.com>
  *
- * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
- * All rights reserved.</center></h2>
+ * Version 1.0
  *
- * This software component is licensed by ST under BSD 3-Clause license,
- * the "License"; You may not use this file except in compliance with the
- * License. You may obtain a copy of the License at:
- *                        opensource.org/licenses/BSD-3-Clause
+ * This software controls an STM32f103c8t6 microcontroller manage
+ * aerators engines according to luminosity and print messages via
+ * UART.
  *
- * https://github.com/STMicroelectronics/STM32CubeF1/blob/master/Projects/STM32F103RB-Nucleo/Applications/EEPROM/EEPROM_Emulation/Src/main.c
- ******************************************************************************
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the Licence, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Se the
+ * GNU General Public Licence for more details.
+ *
+ * Created on: feb-03-2020
+ *
+ * This software is designed to run under STM32 System Workbench IDE + CubeMX.
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
