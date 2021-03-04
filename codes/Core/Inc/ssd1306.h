@@ -104,6 +104,14 @@ void SSD1306_UpdateScreen(void);
  */
 void SSD1306_ToggleInvert(void);
 
+/**
+ * @brief  Toggles pixels upside down
+ * @note   @ref SSD1306_UpdateScreen() must be called after that in order to see updated LCD screen
+ * @param  None
+ * @retval None
+ */
+void SSD1306_ToggleOpposed(void);
+
 /** 
  * @brief  Fills entire LCD with desired color
  * @note   @ref SSD1306_UpdateScreen() must be called after that in order to see updated LCD screen
