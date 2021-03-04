@@ -44,7 +44,10 @@
 
 #define ICONS_X 40
 #define ICONS_Y 32
-#define TEXT_Y 15
+#define TEXT_Y 18
+#define BUTTONS_X 0
+#define BUTTONS_Y 0
+#define BUTTON_X_OFFSET_1 (BUTTONS_X + 64)
 
 #define ERROR_STATE 0
 #define MOTOR_ON_STATE 1
@@ -111,7 +114,7 @@ const osThreadAttr_t ButtonsTask_attributes = { .name = "ButtonsTask",
 uint16_t VirtAddVarTab[NB_OF_VAR] = { 0x5555 };
 float relativeLuminosity = 0;
 uint32_t ldrResistence = 0;
-uint16_t luminosityTrigger = LDR_RESISTENCE_TRIGGER, state = BOOTING_STATE;
+uint16_t luminosityTrigger = LDR_RESISTENCE_TRIGGER;
 uint8_t motorVoltageDetected, automaticModeEnabled = 1, messageType =
 BOOTING_MSG;
 GPIO_PinState lowLuminosityDetected;
@@ -536,12 +539,11 @@ void StartAeratorsTask(void *argument) {
   GPIO_PinState lowLuminosityDetected;
   uint32_t timeSinceLastMotorToggle = HAL_GetTick(), lastMotorToggleTimestamp =
       0;
-  // unsigned int lastMotorToggleTimestamp = HAL_GetTick(), timeSinceLastMotorToggle = 0;
 
   /* Infinite loop */
   for (;;) {
     ldrResistence = LDR_GetResistence();
-    relativeLuminosity = (float) luminosityTrigger / ldrResistence;
+    relativeLuminosity = (relativeLuminosity * 19 + (float) luminosityTrigger / ldrResistence) / 20;
     motorVoltageDetected = HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin);
 
     lowLuminosityDetected =
@@ -604,7 +606,8 @@ void StartAeratorsTask(void *argument) {
         state = MOTOR_ON_STATE;
       break;
     }
-    osDelay(1);
+
+    osDelay(20);
   }
   /* USER CODE END 5 */
 }
@@ -619,14 +622,17 @@ void StartAeratorsTask(void *argument) {
 void StartDisplayTask(void *argument) {
   /* USER CODE BEGIN StartDisplayTask */
   uint8_t propellerFrame = 0;
-  uint8_t updateTextFlag = 0;
   char displayText[50];
 
   SSD1306_Init();
   SSD1306_ToggleOpposed();
   SSD1306_DrawFilledRectangle(0, 0, 128, 64, 1);
+  SSD1306_GotoXY(17, 20);
+  SSD1306_Puts("Aerators", &Font_11x18, 0);
+  SSD1306_GotoXY(7, 39);
+  SSD1306_Puts("Controller", &Font_11x18, 1);
   SSD1306_UpdateScreen();
-  HAL_Delay(500);
+  HAL_Delay(2000);
   SSD1306_DrawFilledRectangle(0, 0, 128, 64, 0);
 
   // Print aerator
@@ -649,6 +655,22 @@ void StartDisplayTask(void *argument) {
   SSD1306_DrawFilledCircle(ICONS_X + 12, ICONS_Y + 12, 8, 0);
   SSD1306_DrawFilledCircle(ICONS_X + 12, ICONS_Y + 12, 6, 1);
 
+  // Print buttons
+  SSD1306_DrawFilledRectangle(BUTTONS_X + 0, BUTTONS_Y + 0, BUTTON_X_OFFSET_1 - 3, 12, 1);
+  SSD1306_DrawFilledCircle(BUTTONS_X + 5, BUTTONS_Y + 6, 4, 0);
+  SSD1306_GotoXY(BUTTONS_X + 12, BUTTONS_Y + 3);
+  SSD1306_Puts("Modo", &Font_7x10, 0);
+
+  SSD1306_DrawFilledRectangle(BUTTON_X_OFFSET_1 + 0, BUTTONS_Y + 0, 128 - BUTTON_X_OFFSET_1, 12, 1);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 0, BUTTON_X_OFFSET_1 + 2 + 7, BUTTONS_Y + 3 + 6, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 1, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 6, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 0, BUTTONS_Y + 3 + 1, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 7, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 0, BUTTONS_Y + 3 + 6, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 0, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 6, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 1, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 7, BUTTON_X_OFFSET_1 + 2 + 7, BUTTONS_Y + 3 + 1, 0);
+  SSD1306_GotoXY(BUTTON_X_OFFSET_1 + 12, BUTTONS_Y + 3);
+  SSD1306_Puts("Config.", &Font_7x10, 0);
+
   // Print WiFi signal level
   // Print automatic mode on/off
   // Print state
@@ -657,19 +679,16 @@ void StartDisplayTask(void *argument) {
 
   /* Infinite loop */
   for (;;) {
-    propellerFrame = (propellerFrame + 1) % 4;
-    updateTextFlag = !propellerFrame; // when propeller is 0, updateTextFlag is 1;
+    propellerFrame = motorVoltageDetected ? (propellerFrame + 1) % 4 : propellerFrame;
 
-    if (updateTextFlag) {
-      SSD1306_DrawFilledRectangle(0, TEXT_Y, 128, ICONS_Y - TEXT_Y, 0);
+    SSD1306_DrawFilledRectangle(0, TEXT_Y, 128, ICONS_Y - TEXT_Y, 0);
 
-      SSD1306_GotoXY(0, TEXT_Y);
-      SSD1306_Puts(motorVoltageDetected ? "Lig." : "Des.", &Font_7x10, 1);
+    SSD1306_GotoXY(0, TEXT_Y);
+    SSD1306_Puts(motorVoltageDetected ? "Lig." : "Des.", &Font_7x10, 1);
 
-      sprintf(displayText, "%i%%", (int) (relativeLuminosity * 100));
-      SSD1306_GotoXY(ICONS_X, TEXT_Y);
-      SSD1306_Puts(displayText, &Font_7x10, 1);
-    }
+    sprintf(displayText, "%i%%", (int) (relativeLuminosity * 100));
+    SSD1306_GotoXY(ICONS_X, TEXT_Y);
+    SSD1306_Puts(displayText, &Font_7x10, 1);
 
     switch (propellerFrame) {
     case 0:
