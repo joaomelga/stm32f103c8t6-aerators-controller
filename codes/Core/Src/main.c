@@ -43,11 +43,8 @@
 #define MOTOR_TOGGLE_MAX_TIME 3000 // 3 seconds
 
 #define ICONS_X 40
-#define ICONS_Y 32
+#define ICONS_Y 34
 #define TEXT_Y 18
-#define BUTTONS_X 0
-#define BUTTONS_Y 0
-#define BUTTON_X_OFFSET_1 (BUTTONS_X + 64)
 
 #define ERROR_STATE 0
 #define MOTOR_ON_STATE 1
@@ -66,6 +63,13 @@
 #define AUTOMATIC_MODE_ON_MSG 6
 #define AUTOMATIC_MODE_OFF_MSG 7
 #define BOOTING_MSG 8
+
+#define AERATOR_ICON 0
+#define LIGHT_ICON 1
+#define STARTER_ICON 2
+#define RAY_ICON 3
+#define PROPELLER_1_ICON 4
+#define PROPELLER_2_ICON 5
 
 /* USER CODE END Includes */
 
@@ -137,6 +141,8 @@ void StartButtonsTask(void *argument);
 static uint32_t LDR_GetResistence();
 static void ADC_ConfigChannel(uint32_t);
 static void UART_TransmitMessage(char *);
+static void SSD1306_PutIcon(uint8_t, uint8_t, uint8_t, uint8_t);
+static void SSD1306_PutHeaderButtons(char*, char*);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -524,6 +530,71 @@ static void ADC_ConfigChannel(uint32_t channel) {
 static void UART_TransmitMessage(char *message) {
   HAL_UART_Transmit(&huart1, (uint8_t*) message, strlen(message), 1000);
 }
+
+static void SSD1306_PutIcon(uint8_t x, uint8_t y, uint8_t icon, uint8_t color) {
+  switch (icon) {
+  case AERATOR_ICON:
+    SSD1306_DrawFilledRectangle(x + 7, y + 0, 8, 10, color);
+    SSD1306_DrawRectangle(x + 7, y + 6, 8, 12, color);
+    SSD1306_DrawFilledRectangle(x + 0, y + 16, 22, 4, color);
+    SSD1306_DrawLine(x + 11, y + 12, x + 11, y + 28, color);
+    break;
+
+  case LIGHT_ICON:
+    SSD1306_DrawLine(x + 2, y + 2, x + 22, y + 22, color);
+    SSD1306_DrawLine(x + 22, y + 2, x + 2, y + 22, color);
+    SSD1306_DrawLine(x + 12, y + 0, x + 12, y + 24, color);
+    SSD1306_DrawLine(x + 0, y + 12, x + 24, y + 12, color);
+    SSD1306_DrawFilledCircle(x + 12, y + 12, 8, !color);
+    SSD1306_DrawFilledCircle(x + 12, y + 12, 6, color);
+    break;
+
+  case STARTER_ICON:
+    SSD1306_DrawRectangle(x, y, 16, 24, color);
+    SSD1306_DrawCircle(x + 5, y + 7, 2, color);
+    SSD1306_DrawFilledCircle(x + 5, y + 14, 2, color);
+    break;
+
+  case PROPELLER_1_ICON:
+    SSD1306_DrawTriangle(x - 2, y, x - 6, y - 2, x - 6, y + 2, color);
+    SSD1306_DrawTriangle(x + 2, y, x + 6, y - 2, x + 6, y + 2, color);
+    break;
+
+  case PROPELLER_2_ICON:
+    SSD1306_DrawTriangle(x - 2, y, x - 4, y - 2, x - 4, y + 2, color);
+    SSD1306_DrawTriangle(x + 2, y, x + 4, y - 2, x + 4, y + 2, color);
+    break;
+  }
+}
+
+static void SSD1306_PutHeaderButtons(char *text1, char *text2) {
+#define BUTTONS_X 0
+#define BUTTONS_Y 0
+#define BUTTON_X_OFFSET_1 (BUTTONS_X + 64)
+
+  SSD1306_DrawFilledRectangle(BUTTONS_X + 0, BUTTONS_Y + 0,
+  BUTTON_X_OFFSET_1 - 3, 12, 1);
+  SSD1306_DrawFilledCircle(BUTTONS_X + 5, BUTTONS_Y + 6, 4, 0);
+  SSD1306_GotoXY(BUTTONS_X + 12, BUTTONS_Y + 3);
+  SSD1306_Puts(text1, &Font_7x10, 0);
+
+  SSD1306_DrawFilledRectangle(BUTTON_X_OFFSET_1 + 0, BUTTONS_Y + 0,
+      128 - BUTTON_X_OFFSET_1, 12, 1);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 0,
+  BUTTON_X_OFFSET_1 + 2 + 7, BUTTONS_Y + 3 + 6, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 1,
+  BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 6, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 0, BUTTONS_Y + 3 + 1,
+  BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 7, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 0, BUTTONS_Y + 3 + 6,
+  BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 0, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 6,
+  BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 1, 0);
+  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 7,
+  BUTTON_X_OFFSET_1 + 2 + 7, BUTTONS_Y + 3 + 1, 0);
+  SSD1306_GotoXY(BUTTON_X_OFFSET_1 + 12, BUTTONS_Y + 3);
+  SSD1306_Puts(text2, &Font_7x10, 0);
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartAeratorsTask */
@@ -537,13 +608,14 @@ void StartAeratorsTask(void *argument) {
   /* USER CODE BEGIN 5 */
   uint8_t state = 0;
   GPIO_PinState lowLuminosityDetected;
-  uint32_t timeSinceLastMotorToggle = HAL_GetTick(), lastMotorToggleTimestamp =
-      0;
+  uint32_t timeSinceLastMotorToggle = HAL_GetTick();
+  uint32_t lastMotorToggleTimestamp = 0;
 
   /* Infinite loop */
   for (;;) {
     ldrResistence = LDR_GetResistence();
-    relativeLuminosity = (relativeLuminosity * 19 + (float) luminosityTrigger / ldrResistence) / 20;
+    relativeLuminosity = (relativeLuminosity * 19
+        + (float) luminosityTrigger / ldrResistence) / 20;
     motorVoltageDetected = HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin);
 
     lowLuminosityDetected =
@@ -626,110 +698,62 @@ void StartDisplayTask(void *argument) {
 
   SSD1306_Init();
   SSD1306_ToggleOpposed();
+
   SSD1306_DrawFilledRectangle(0, 0, 128, 64, 1);
   SSD1306_GotoXY(17, 20);
   SSD1306_Puts("Aerators", &Font_11x18, 0);
   SSD1306_GotoXY(7, 39);
   SSD1306_Puts("Controller", &Font_11x18, 1);
+
   SSD1306_UpdateScreen();
-  HAL_Delay(2000);
+  osDelay(2000);
   SSD1306_DrawFilledRectangle(0, 0, 128, 64, 0);
 
-  // Print aerator
-  SSD1306_DrawFilledRectangle(6, ICONS_Y + 0, 10, 12, 1);
-  SSD1306_DrawRectangle(6, ICONS_Y + 6, 10, 12, 1);
-  SSD1306_DrawFilledRectangle(0, ICONS_Y + 16, 22, 6, 1);
-  SSD1306_DrawLine(11, ICONS_Y + 12, 11, ICONS_Y + 30, 1);
-  SSD1306_DrawTriangle(9, ICONS_Y + 28, 5, ICONS_Y + 26, 5, ICONS_Y + 30, 1);
-  SSD1306_DrawTriangle(13, ICONS_Y + 28, 17, ICONS_Y + 26, 17, ICONS_Y + 30, 1);
+  // Print icons and buttons
+  SSD1306_PutIcon(12, ICONS_Y, STARTER_ICON, 1);
+  SSD1306_PutIcon(53, ICONS_Y, AERATOR_ICON, 1);
+  SSD1306_PutIcon(96, ICONS_Y, LIGHT_ICON, 1);
 
-  // Print ligth
-  SSD1306_DrawLine(ICONS_X + 0, ICONS_Y + 0, ICONS_X + 24,
-  ICONS_Y + 24, 1);
-  SSD1306_DrawLine(ICONS_X + 24, ICONS_Y + 0, ICONS_X + 0,
-  ICONS_Y + 24, 1);
-  SSD1306_DrawLine(ICONS_X + 12, ICONS_Y + 0, ICONS_X + 12,
-  ICONS_Y + 24, 1);
-  SSD1306_DrawLine(ICONS_X + 0, ICONS_Y + 12, ICONS_X + 24,
-  ICONS_Y + 12, 1);
-  SSD1306_DrawFilledCircle(ICONS_X + 12, ICONS_Y + 12, 8, 0);
-  SSD1306_DrawFilledCircle(ICONS_X + 12, ICONS_Y + 12, 6, 1);
-
-  // Print buttons
-  SSD1306_DrawFilledRectangle(BUTTONS_X + 0, BUTTONS_Y + 0, BUTTON_X_OFFSET_1 - 3, 12, 1);
-  SSD1306_DrawFilledCircle(BUTTONS_X + 5, BUTTONS_Y + 6, 4, 0);
-  SSD1306_GotoXY(BUTTONS_X + 12, BUTTONS_Y + 3);
-  SSD1306_Puts("Modo", &Font_7x10, 0);
-
-  SSD1306_DrawFilledRectangle(BUTTON_X_OFFSET_1 + 0, BUTTONS_Y + 0, 128 - BUTTON_X_OFFSET_1, 12, 1);
-  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 0, BUTTON_X_OFFSET_1 + 2 + 7, BUTTONS_Y + 3 + 6, 0);
-  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 1, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 6, 0);
-  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 0, BUTTONS_Y + 3 + 1, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 7, 0);
-  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 0, BUTTONS_Y + 3 + 6, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 0, 0);
-  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 6, BUTTON_X_OFFSET_1 + 2 + 6, BUTTONS_Y + 3 + 1, 0);
-  SSD1306_DrawLine(BUTTON_X_OFFSET_1 + 2 + 1, BUTTONS_Y + 3 + 7, BUTTON_X_OFFSET_1 + 2 + 7, BUTTONS_Y + 3 + 1, 0);
-  SSD1306_GotoXY(BUTTON_X_OFFSET_1 + 12, BUTTONS_Y + 3);
-  SSD1306_Puts("Config.", &Font_7x10, 0);
-
-  // Print WiFi signal level
-  // Print automatic mode on/off
-  // Print state
+  // Print
+  SSD1306_PutHeaderButtons("Modo", "Config.");
 
   SSD1306_UpdateScreen();
 
   /* Infinite loop */
   for (;;) {
-    propellerFrame = motorVoltageDetected ? (propellerFrame + 1) % 4 : propellerFrame;
 
-    SSD1306_DrawFilledRectangle(0, TEXT_Y, 128, ICONS_Y - TEXT_Y, 0);
+    SSD1306_DrawFilledRectangle(0, TEXT_Y, 128, ICONS_Y - TEXT_Y - 1, 0);
 
-    SSD1306_GotoXY(0, TEXT_Y);
+    SSD1306_GotoXY(9, TEXT_Y);
+    SSD1306_Puts(automaticModeEnabled ? "Auto" : "Man.", &Font_7x10, 1);
+
+    SSD1306_GotoXY(53, TEXT_Y);
     SSD1306_Puts(motorVoltageDetected ? "Lig." : "Des.", &Font_7x10, 1);
 
     sprintf(displayText, "%i%%", (int) (relativeLuminosity * 100));
-    SSD1306_GotoXY(ICONS_X, TEXT_Y);
+    SSD1306_GotoXY(96, TEXT_Y);
     SSD1306_Puts(displayText, &Font_7x10, 1);
+
+    if (motorVoltageDetected)
+      propellerFrame = (propellerFrame + 1) % 4;
 
     switch (propellerFrame) {
     case 0:
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 7, ICONS_Y + 26, 7, ICONS_Y + 30,
-          0);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 15, ICONS_Y + 26, 15,
-      ICONS_Y + 30, 0);
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 5, ICONS_Y + 26, 5, ICONS_Y + 30,
-          1);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 17, ICONS_Y + 26, 17,
-      ICONS_Y + 30, 1);
-
+      SSD1306_PutIcon(64, 60, PROPELLER_2_ICON, 0);
+      SSD1306_PutIcon(64, 60, PROPELLER_1_ICON, 1);
       break;
 
     case 1:
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 5, ICONS_Y + 26, 5, ICONS_Y + 30,
-          0);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 17, ICONS_Y + 26, 17,
-      ICONS_Y + 30, 0);
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 7, ICONS_Y + 26, 7, ICONS_Y + 30,
-          1);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 15, ICONS_Y + 26, 15,
-      ICONS_Y + 30, 1);
+      SSD1306_PutIcon(64, 60, PROPELLER_1_ICON, 0);
+      SSD1306_PutIcon(64, 60, PROPELLER_2_ICON, 1);
       break;
 
     case 2:
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 7, ICONS_Y + 26, 7, ICONS_Y + 30,
-          0);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 15, ICONS_Y + 26, 15,
-      ICONS_Y + 30, 0);
+      SSD1306_PutIcon(64, 60, PROPELLER_2_ICON, 0);
       break;
 
     case 3:
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 7, ICONS_Y + 26, 7, ICONS_Y + 30,
-          0);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 15, ICONS_Y + 26, 15,
-      ICONS_Y + 30, 0);
-      SSD1306_DrawTriangle(9, ICONS_Y + 28, 7, ICONS_Y + 26, 7, ICONS_Y + 30,
-          1);
-      SSD1306_DrawTriangle(13, ICONS_Y + 28, 15, ICONS_Y + 26, 15,
-      ICONS_Y + 30, 1);
+      SSD1306_PutIcon(64, 60, PROPELLER_2_ICON, 1);
       break;
     }
 
@@ -778,7 +802,6 @@ void StartButtonsTask(void *argument) {
       automaticModeEnabled = !automaticModeEnabled;
 
       osDelay(200);
-      ;
       while (HAL_GPIO_ReadPin(GPIOB, BUTTON_D2_Pin))
         osDelay(10);
     }
