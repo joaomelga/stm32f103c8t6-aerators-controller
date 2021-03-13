@@ -41,6 +41,7 @@
 #define MIN_MSG_GAP 7500 // 7,5 seconds
 #define ANIMATION_GAP 200
 #define MOTOR_TOGGLE_MAX_TIME 3000 // 3 seconds
+#define MOTOR_TOGGLE_DELAY 5000 // 5 seconds
 
 #define ICONS_X 40
 #define ICONS_Y 34
@@ -70,6 +71,15 @@
 #define RAY_ICON 3
 #define PROPELLER_1_ICON 4
 #define PROPELLER_2_ICON 5
+
+#define CIRCLE_BTN 0
+#define CROSS_BTN 1
+
+#define DASHBOARD_VIEW 0
+#define SETTINGS_VIEW 1
+
+#define DISPLAY_ARROW_POSITIONS 4
+#define NUMBER_OF_SETTINGS 5
 
 /* USER CODE END Includes */
 
@@ -112,6 +122,7 @@ const osThreadAttr_t WiFiTask_attributes = { .name = "WiFiTask", .priority =
 osThreadId_t ButtonsTaskHandle;
 const osThreadAttr_t ButtonsTask_attributes = { .name = "ButtonsTask",
     .priority = (osPriority_t) osPriorityLow, .stack_size = 128 * 4 };
+
 /* USER CODE BEGIN PV */
 
 /* Virtual address defined by the user: 0xFFFF value is prohibited */
@@ -123,6 +134,23 @@ uint8_t motorVoltageDetected, automaticModeEnabled = 1, messageType =
 BOOTING_MSG;
 GPIO_PinState lowLuminosityDetected;
 
+uint8_t state = 0;
+uint32_t btnPressedFlag = 0;
+uint8_t btnPressedName = CIRCLE_BTN;
+uint8_t currentView = DASHBOARD_VIEW;
+uint8_t arrowDisplayPosition = 0;
+uint8_t arrowSettingsPosition = 0;
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == CIRCLE_BTN_Pin)
+    btnPressedName = CIRCLE_BTN;
+  else if (GPIO_Pin == CROSS_BTN_Pin)
+    btnPressedName = CROSS_BTN;
+  else
+    return;
+
+  btnPressedFlag = 1;
+}
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -482,9 +510,9 @@ static void MX_GPIO_Init(void) {
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(BUTTON_D1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : BUTTON_D3_Pin MOTOR_STATUS_Pin BUTTON_D2_Pin */
-  GPIO_InitStruct.Pin = BUTTON_D3_Pin | MOTOR_STATUS_Pin | BUTTON_D2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pins : CROSS_BTN_Pin CIRCLE_BTN_Pin */
+  GPIO_InitStruct.Pin = CROSS_BTN_Pin | CIRCLE_BTN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -495,9 +523,41 @@ static void MX_GPIO_Init(void) {
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(BUZZER_D1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : MOTOR_STATUS_Pin */
+  GPIO_InitStruct.Pin = MOTOR_STATUS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(MOTOR_STATUS_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
 }
 
 /* USER CODE BEGIN 4 */
+static void MOTOR_WriteState() {
+  switch (state) {
+  case MOTOR_SWITCHING_ON_STATE:
+    HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_SET);
+    break;
+
+  case MOTOR_SWITCHING_OFF_STATE:
+    HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_RESET);
+    break;
+
+  default:
+    HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_SET);
+    break;
+  }
+}
+
 static uint32_t LDR_GetResistence() {
   uint32_t adcValue = 0, resistence;
   float serieResistorTension;
@@ -606,7 +666,6 @@ static void SSD1306_PutHeaderButtons(char *text1, char *text2) {
 /* USER CODE END Header_StartAeratorsTask */
 void StartAeratorsTask(void *argument) {
   /* USER CODE BEGIN 5 */
-  uint8_t state = 0;
   GPIO_PinState lowLuminosityDetected;
   uint32_t timeSinceLastMotorToggle = HAL_GetTick();
   uint32_t lastMotorToggleTimestamp = 0;
@@ -619,16 +678,20 @@ void StartAeratorsTask(void *argument) {
     motorVoltageDetected = HAL_GPIO_ReadPin(GPIOB, MOTOR_STATUS_Pin);
 
     lowLuminosityDetected =
-        relativeLuminosity < 1 ? GPIO_PIN_SET : GPIO_PIN_RESET;
+        motorVoltageDetected ?
+            (relativeLuminosity > 1.1 ? GPIO_PIN_RESET : GPIO_PIN_SET) :
+            (relativeLuminosity < 0.9 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
     timeSinceLastMotorToggle = HAL_GetTick() - lastMotorToggleTimestamp;
 
     switch (state) {
     case BOOTING_STATE:
+      MOTOR_WriteState();
       state = motorVoltageDetected ? MOTOR_ON_STATE : MOTOR_OFF_STATE;
       break;
 
     case MOTOR_ON_STATE:
-      HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_RESET);
+      MOTOR_WriteState();
 
       if (!motorVoltageDetected)
         state = MOTOR_OFF_STATE;
@@ -640,7 +703,7 @@ void StartAeratorsTask(void *argument) {
       break;
 
     case MOTOR_OFF_STATE:
-      HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_RESET);
+      MOTOR_WriteState();
 
       if (motorVoltageDetected)
         state = MOTOR_ON_STATE;
@@ -652,24 +715,34 @@ void StartAeratorsTask(void *argument) {
       break;
 
     case MOTOR_SWITCHING_ON_STATE:
-      HAL_GPIO_WritePin(GPIOA, MOTOR_START_Pin, GPIO_PIN_SET);
-
       if (motorVoltageDetected)
         state = MOTOR_ON_STATE;
-      else if (timeSinceLastMotorToggle > MOTOR_TOGGLE_MAX_TIME)
+
+      else if (timeSinceLastMotorToggle
+          > MOTOR_TOGGLE_MAX_TIME + MOTOR_TOGGLE_DELAY)
         state = ERROR_STATE;
+
+      else if (timeSinceLastMotorToggle > MOTOR_TOGGLE_DELAY)
+        MOTOR_WriteState();
+
       break;
 
     case MOTOR_SWITCHING_OFF_STATE:
-      HAL_GPIO_WritePin(GPIOA, MOTOR_STOP_Pin, GPIO_PIN_SET);
-
       if (!motorVoltageDetected)
         state = MOTOR_OFF_STATE;
-      else if (timeSinceLastMotorToggle > MOTOR_TOGGLE_MAX_TIME)
+
+      else if (timeSinceLastMotorToggle
+          > MOTOR_TOGGLE_MAX_TIME + MOTOR_TOGGLE_DELAY)
         state = ERROR_STATE;
+
+      else if (timeSinceLastMotorToggle > MOTOR_TOGGLE_DELAY)
+        MOTOR_WriteState();
+
       break;
 
     case ERROR_STATE:
+      MOTOR_WriteState();
+
       if (!automaticModeEnabled)
         state = BOOTING_STATE;
       else if (!motorVoltageDetected && !lowLuminosityDetected)
@@ -694,6 +767,7 @@ void StartAeratorsTask(void *argument) {
 void StartDisplayTask(void *argument) {
   /* USER CODE BEGIN StartDisplayTask */
   uint8_t propellerFrame = 0;
+  uint8_t starterFrame = 0;
   char displayText[50];
 
   SSD1306_Init();
@@ -715,13 +789,14 @@ void StartDisplayTask(void *argument) {
   SSD1306_PutIcon(96, ICONS_Y, LIGHT_ICON, 1);
 
   // Print
-  SSD1306_PutHeaderButtons("Modo", "Config.");
+  SSD1306_PutHeaderButtons("Modo", "Calibr.");
 
   SSD1306_UpdateScreen();
 
   /* Infinite loop */
   for (;;) {
-
+    // switch (currentView) {
+    // case DASHBOARD_VIEW: {
     SSD1306_DrawFilledRectangle(0, TEXT_Y, 128, ICONS_Y - TEXT_Y - 1, 0);
 
     SSD1306_GotoXY(9, TEXT_Y);
@@ -736,6 +811,13 @@ void StartDisplayTask(void *argument) {
 
     if (motorVoltageDetected)
       propellerFrame = (propellerFrame + 1) % 4;
+
+    if (state == MOTOR_SWITCHING_ON_STATE || state == MOTOR_SWITCHING_OFF_STATE
+        || state == ERROR_STATE) {
+      starterFrame = !starterFrame;
+      SSD1306_PutIcon(12, ICONS_Y, STARTER_ICON, starterFrame);
+    } else
+      SSD1306_PutIcon(12, ICONS_Y, STARTER_ICON, 1);
 
     switch (propellerFrame) {
     case 0:
@@ -755,12 +837,19 @@ void StartDisplayTask(void *argument) {
     case 3:
       SSD1306_PutIcon(64, 60, PROPELLER_2_ICON, 1);
       break;
+
     }
 
     SSD1306_UpdateScreen();
     osDelay(150);
+    /* case SETTINGS_VIEW:
+     {
+
+     }
+     }
+     } */
+    /* USER CODE END StartDisplayTask */
   }
-  /* USER CODE END StartDisplayTask */
 }
 
 /* USER CODE BEGIN Header_StartWiFiTask */
@@ -790,25 +879,78 @@ void StartButtonsTask(void *argument) {
   /* USER CODE BEGIN StartButtonsTask */
   /* Infinite loop */
   for (;;) {
-    if (HAL_GPIO_ReadPin(GPIOB, BUTTON_D3_Pin)) {
-      luminosityTrigger = ldrResistence;
-      EE_WriteVariable(VirtAddVarTab[0], luminosityTrigger);
+    // osThreadFlagsWait(btnPressedFlag, osFlagsWaitAny, osWaitForever);
 
-      osDelay(200);
-      while (HAL_GPIO_ReadPin(GPIOB, BUTTON_D3_Pin))
-        osDelay(10);
+    if (btnPressedFlag) {
+      // switch (currentView) {
+      // case DASHBOARD_VIEW: {
+      if (btnPressedName == CIRCLE_BTN)
+        automaticModeEnabled = !automaticModeEnabled;
+      else {
+        luminosityTrigger = ldrResistence;
+        EE_WriteVariable(VirtAddVarTab[0], luminosityTrigger);
+        osDelay(200);
 
-    } else if (HAL_GPIO_ReadPin(GPIOB, BUTTON_D2_Pin)) {
-      automaticModeEnabled = !automaticModeEnabled;
+        /* currentView = SETTINGS_VIEW;
+         }
+         break;
+         }
+         }
+         case SETTINGS_VIEW: {
+         if (btnPressedName == CIRCLE_BTN) {
+         switch (arrowSettingsPosition) {
+         case LUMINOSITY_TRIGGER_POSITION: {
+         luminosityTrigger = ldrResistence;
+         EE_WriteVariable(VirtAddVarTab[0], luminosityTrigger);
+         osDelay(200);
+         }
+         }
+         } else { // CROSS_BTN
+         if (arrowDisplayPosition + 1 < DISPLAY_ARROW_POSITIONS)
+         arrowDisplayPosition = (arrowDisplayPosition + 1)
+         % DISPLAY_ARROW_POSITIONS;
 
-      osDelay(200);
-      while (HAL_GPIO_ReadPin(GPIOB, BUTTON_D2_Pin))
-        osDelay(10);
-    }
+         if (arrowSettingsPosition + 1 < NUMBER_OF_SETTINGS)
+         arrowSettingsPosition = (arrowSettingsPosition + 1)
+         % NUMBER_OF_SETTINGS;
+         else {
+         arrowDisplayPosition = 0;
+         arrowSettingsPosition = 0;
+         currentView = DASHBOARD_VIEW;
+         }
+         }
 
-    osDelay(10);
+         break;
+         }
+         }
+         }
+
+         // btnPressedFlag = 0;
+
+         if (HAL_GPIO_ReadPin(GPIOB, BUTTON_D3_Pin)) {
+         luminosityTrigger = ldrResistence;
+         EE_WriteVariable(VirtAddVarTab[0], luminosityTrigger);
+
+         osDelay(200);
+         while (HAL_GPIO_ReadPin(GPIOB, BUTTON_D3_Pin))
+         osDelay(10);
+
+         } else if (HAL_GPIO_ReadPin(GPIOB, BUTTON_D2_Pin)) {
+         automaticModeEnabled = !automaticModeEnabled;
+
+         osDelay(200);
+         while (HAL_GPIO_ReadPin(GPIOB, BUTTON_D2_Pin))
+         osDelay(10);
+         } */
+      }
+
+      osDelay(100);
+      btnPressedFlag = 0;
+    } else
+      osDelay(100);
   }
   /* USER CODE END StartButtonsTask */
+
 }
 
 /**

@@ -72,14 +72,16 @@ void Error_Handler(void);
 #define LED_D3_GPIO_Port GPIOA
 #define BUTTON_D1_Pin GPIO_PIN_6
 #define BUTTON_D1_GPIO_Port GPIOA
-#define BUTTON_D3_Pin GPIO_PIN_0
-#define BUTTON_D3_GPIO_Port GPIOB
+#define CROSS_BTN_Pin GPIO_PIN_0
+#define CROSS_BTN_GPIO_Port GPIOB
+#define CROSS_BTN_EXTI_IRQn EXTI0_IRQn
 #define BUZZER_D1_Pin GPIO_PIN_1
 #define BUZZER_D1_GPIO_Port GPIOB
 #define MOTOR_STATUS_Pin GPIO_PIN_10
 #define MOTOR_STATUS_GPIO_Port GPIOB
-#define BUTTON_D2_Pin GPIO_PIN_11
-#define BUTTON_D2_GPIO_Port GPIOB
+#define CIRCLE_BTN_Pin GPIO_PIN_11
+#define CIRCLE_BTN_GPIO_Port GPIOB
+#define CIRCLE_BTN_EXTI_IRQn EXTI15_10_IRQn
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
